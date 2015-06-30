@@ -1,0 +1,421 @@
+<apex:component controller="attachUploadController" allowDML="true">
+<apex:stylesheet value="{!URLFOR($Resource.static, '/css/dropzone_custom.css')}"/> 
+<script src="{!$Site.Prefix}/soap/ajax/33.0/connection.js" /> 
+				<style>
+				   #browserOk{
+				    	display:none;
+				    }
+				    #oldBrowser{
+				    	display:none;
+				    }
+				@media (max-width: 480px){
+				     .col-md-8{
+				        position:static;
+				        margin-bottom: 20px;
+				    }
+				}
+				.pbTitle {
+					width:100%;
+				}
+				.pbHeader{
+					width:100%;
+					text-align:center;
+				}
+				td{
+					padding-top: 5px;
+				} 
+				#ieUp{
+					padding-top: 5px;
+				    border-radius: 50%;
+				    width: 25px;
+				    height: 25px;
+				    background: linear-gradient(to bottom, #00449C 0%, #00449C 50%, #000000 50%, #003087 50%, #003087 100%);
+				    background-image: linear-gradient(rgb(0, 68, 156) 0%, rgb(0, 68, 156) 50%, rgb(0, 0, 0) 50%, rgb(0, 48, 135) 50%, rgb(0, 48, 135) 100%);
+				    background-color: #003087;
+				    font-size: 15px;
+				    color: #FFFFFF;
+				    -webkit-box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, 0.5);
+				    -moz-box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, 0.5);
+				    box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, 0.5);
+				    border: none;
+				    transition: all 0.3s;
+				
+				}
+				</style>
+<script>   
+        var attachId;
+        var filesCount = 0;
+          
+        function uploadAttachment(filecontent, filename, filetype, parentId) { 
+            //console.log('_eftk====' + _eftk);         
+            //console.log('upload attachment called line 29 filetype===' + filetype + 'filename===' + filename + 'parentId====' + parentId);          
+            //if (sforce.connection.serverUrl.substring(0, 6) != '{!$Site.Prefix}'){
+                //check to see if the page is being viewed from the Community endpoint before adding the Site.Prefix. e.g. URL contains "*/apex/*"
+            //    sforce.connection.serverUrl = '{!$Site.Prefix}' + sforce.connection.serverUrl;
+           // }
+            //
+            //If user is Guest then use the dummy users session to add attachment to an existing case
+            //if({!ISPICKVAL($User.UserType,'Guest')}){                                          
+            //    sforce.connection.sessionId = _eftk[0];
+               // console.log('user is guest sforce.connection.sessionId=====' + sforce.connection.sessionId);
+            //} else sforce.connection.sessionId = '{!$Api.Session_ID}'*/
+             
+            sforce.connection.sessionId = '{!$Api.Session_ID}';            
+            var attachment         = new sforce.SObject('Attachment');
+            attachment.Name        = filename;
+            attachment.IsPrivate   = false;
+            attachment.ContentType = filetype;
+            attachment.Body        = filecontent;
+            attachment.Description = filename;  
+            attachment.ParentId    = parentId;                                                  
+            var result = sforce.connection.create([attachment]);
+            
+            if(result[0].getBoolean("success")){
+                console.log("Upload Successful: attachId===="+ result[0].id);
+                attachId = result[0].id;
+                filesCount = filesCount + 1;
+                $( "#spinner" ).removeClass("sk-spinner sk-spinner-three-bounce");
+                $("#waitload").hide();
+                fileUploadSection("Continue");
+                document.getElementsByClassName("input").attr = ("disabled", "enabled");
+            }else{
+            }    
+            //console.log('parentid=  ' + parentId + 'filename:  ' + filename);
+            return;
+        }                     
+</script>
+ <script>
+    var dropzone = document.getElementById('attachmentDropzone');    
+    function drop(evt) {
+        //console.log('in drop evt 81');
+        endEvent(evt);        
+        var files = evt.originalEvent.dataTransfer.files;            
+        if (files.length > 0) {
+            try {
+                //upFile(file);         
+            } catch(error) {
+                alert('An error occured : ' + error);
+            }  
+        } 
+    }        
+    function upFile(file){  
+        //console.log('in upFile 163');        
+        var reader = new FileReader();       
+        reader.onload = 
+            (function(file) { 
+                 return function(evt) {
+                     var fileContent = getFileContent(evt.target.result)
+                     var parentId="";
+                     
+                     if('{!$CurrentPage.parameters.cid}')
+                     parentId = "{!$CurrentPage.parameters.cid}";
+                      else
+                     parentId='500i000000HuDl4';
+                     console.log(parentId);
+                     uploadAttachment(fileContent, file.name, file.type, parentId);
+                 };
+             })
+             (file);
+        reader.readAsDataURL(file);
+    }    
+    function getFileContent(fileData) {
+        var fileContent = String(fileData);
+        return fileContent.substr(fileContent.indexOf(',') + 1);
+    }       
+</script> 
+
+
+
+    <div class="loading-wrap" id="waitload" style="display: none;">
+        <div class="spinner">
+            <div class="bounce1"></div>
+            <div class="bounce2"></div>
+            <div class="bounce3"></div>
+            <h3>Please Wait..</h3>
+        </div>
+        <div class="loading-alpha"></div>
+    </div>           
+<div id="browserOk">
+    <section id="fileUpload"> 
+        <div class="row">
+            <div class="col-md-8 col-md-offset-2" id="outerPreview" >             
+                     <form action="upFile();" class="dropzone" id="attachmentDropzone" enctype="multipart/form-data" method="post">                  
+                        <div class="dz-message text-center" data-dz-message="data-dz-message">                          
+                            <span class="fa" id="addAttachBtn" style="color: #585858;">&#xf055;</span>
+                            <span class="fa" id="hideDoc" style="color: #585858;">&nbsp;&#xf030;&nbsp;&#xf15b;</span><br/>
+                            <p1 id="hideDoc2" >Add photos and documents</p1>
+                        </div>
+                        <div id="addFiles" class="dz-default dz-clickable">                         
+                            <span class="fa" id="addAttachBtn" style="color: #585858;">&#xf055;</span><br/>                            
+                            <p1 style="line-height: 35px;">Add Files</p1>
+                        </div>            
+                            <div id="preview-template" >                 
+                                <div class=" data-dz-preview data-dz-file-preview "  >                                                 
+                                    <div class="data-dz-details">                              
+                                        <img data-dz-thumbnail="data-dz-thumbnail" />
+                                        <div class="data-dz-filename" id="fileName" style="color:#585858; text-align:center;">                                                                              
+                                            <span data-dz-name="data-dz-name" ></span>                                                                               
+                                        </div> <!-- end dz-filename  -->                                                                                                 
+                                    </div> <!-- end dz-details -->                                                
+                                </div><!-- end col   -->                
+                            </div><!-- end preview template -->              
+                    </form>                    
+                </div>  <!-- end outer preview   -->                                               
+        </div>
+            <script>
+                    Dropzone.options.attachmentDropzone = {                    
+                        paramName: "file", // The name that will be used to transfer the file
+                        maxFilesize: 10, // MB
+                        dictFileTooBig: "File is too big ({{filesize}}MiB). Max filesize: {{maxFilesize}}MiB.",
+                        thumbnailWidth: 90,
+                        thumbnailHeight: 90,                        
+                        acceptedFiles: ".doc,.rtf,.xls,.bmp,.jpg,.jpeg,.gif,.htm,.tif,.docx,.xlsx,.xlsm,.xml,.pdf,.txt",
+                        dictInvalidFileType: "File selected is not an acceptable file type. Please select from the following acceptable file types: .doc, .rtf, .xls, .bmp, .jpg, .jpeg, .gif, .htm, .html, .tif, .tiff, .docx, .xlsx, .xlsm, .xml, .pdf, .txt",
+                        previewTemplate: document.querySelector('#preview-template').innerHTML,
+                        uploadMultiple: false,
+                        autoProcessQueue: true,
+                        
+                        
+                        // The setting up of the dropzone
+                        init: function() {                      
+                            this.on("addedfile", function(file, done) {                             
+                                if (file.size > 10000000){
+                                    alert('File is too big.  Max Filesize is 10Mb');
+                                    this.removeFile(file);
+                                }
+                                else {                                                       
+                                    // test for valid file types                                                                                                               
+                                    if (file.type==='application/pdf'){                                  
+                                    }
+                                    else if (file.type==='application/msword' || file.type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.type==='application/vnd.ms-excel.sheet.macroEnabled.12'){                                  
+                                    }                                
+                                    else if (file.type==='application/vnd.ms-excel' || file.type==='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'){                                   
+                                    }
+                                    else if (file.type==='text/xml' || file.type==='text/plain' || file.type==='text/html' || file.type==='application/rtf'){                                   
+                                    }
+                                    else if (file.type.match(/image.*/)){                               
+                                    } 
+                                    else {                                  
+                                        alert('File selected is not an acceptable file type. Please select from the following acceptable file types: .doc, .rtf, .xls, .bmp, .jpg, .jpeg, .gif, .htm, .html, .tif, .tiff, .docx, .xlsx, .xlsm, .xml, .pdf, .txt'); 
+                                        this.removeFile(file);                                                                                                                                       
+                                    }
+                                }                                                                                                                                                            
+                            });                           
+                            this.on("sending", function(file){
+                                document.getElementById("addFiles").style.display = "inline-block";                           
+                                document.getElementById("attachmentDropzone").style.border = "0px";
+                                document.getElementById("attachmentDropzone").style.background = "transparent";
+                                document.getElementById("attachmentDropzone").style.height = "auto";
+                                document.getElementById("attachmentDropzone").style.textAlign = "left";
+                                document.getElementById("preview-template").style.display = "none";                                                                        
+                                $( "#waitload").show();
+                                $( "#spinner" ).addClass("sk-spinner sk-spinner-three-bounce");                                 
+                                document.getElementsByClassName("input").attr = ("disabled", "disabled");                           
+                                upFile(file);                                                       
+                            });                           
+                            this.on("success", function(file){                             
+                                if (file.type==='application/pdf'){
+                                    this.emit("thumbnail", file, "{!$Site.Prefix}/resource/static/images/pdf.png");                                    
+                                }
+                                else if (file.type==='application/msword' || file.type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.type==='application/vnd.ms-excel.sheet.macroEnabled.12'){
+                                    this.emit("thumbnail", file, "{!$Site.Prefix}/resource/static/images/doc.png");                                    
+                                }                                
+                                else if (file.type==='application/vnd.ms-excel' || file.type==='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'){
+                                    this.emit("thumbnail", file, "{!$Site.Prefix}/resource/static/images/xls.png");                                    
+                                }
+                                else if (file.type==='text/xml' || file.type==='text/plain' || file.type==='text/html' || file.type==='application/rtf'){
+                                    this.emit("thumbnail", file, "{!$Site.Prefix}/resource/static/images/txt.png");                                    
+                                }                              
+                                else {}
+
+                                    //remove button                               
+                                var removeButton = Dropzone.createElement("<button onClick='removeAttachment(this.id)' class='removeAttach'><i class='fa fa-close' class='removeAttCircle' ></i></button>");                                                              
+                                removeButton.id=attachId;                 
+                                    // Capture the Dropzone instance as closure.
+                                var _this = this;                       
+                                    // Listen to the click event
+                                removeButton.addEventListener("click", function(e) {
+                                      // Make sure the button click doesn't submit the form:
+                                     e.preventDefault();
+                                     e.stopPropagation();
+                                        // Remove the file preview.                                                                          
+                                      _this.removeFile(file); 
+                                }); 
+                                    // Add the button to the file preview element.                                                      
+                                file.previewElement.appendChild(removeButton);
+                                //end remove button                               
+                            });                                                               
+                        }                                                                  
+                    }          
+                </script>               
+                <script>
+                    function removeAttachment(attachId){
+                        $( "#waitload").show();
+                                $( "#spinner" ).addClass("sk-spinner sk-spinner-three-bounce");     
+                        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.attachUploadController.removeAttach}',attachId,
+                                            function(result, event){
+                                                filesCount = filesCount - 1;
+                                                if(filesCount == 0){
+                                                     document.getElementById("addFiles").style.display = "none";                   
+                                                     $('#attachmentDropzone').removeAttr('style');
+                                                     fileUploadSection("SKIP");
+                                                }                                           
+                                                     $( "#spinner" ).removeClass("sk-spinner sk-spinner-three-bounce");
+                                                    $("#waitload").hide();
+                                            },{escape: true}
+                        );
+                    }                    
+			        function fileUploadSection(buttonText){   
+			            if(document.getElementById('processCollisionSummaryResultsBtn') != null){
+			                   document.getElementById('processCollisionSummaryResultsBtn').value = buttonText;            
+			            } 
+			            if(document.getElementById('getCollisionSummaryResultsBtn') != null){
+			                   document.getElementById('getCollisionSummaryResultsBtn').value = buttonText;            
+			            }
+			            if(document.getElementById('getClaimSummaryResultsBtn') != null){
+			                   document.getElementById('getCollisionSummaryResultsBtn').value = buttonText;            
+			            }
+			            if(document.getElementById('ShopDetailsEstimateSubmit') != null){
+			                var btnContinue = document.getElementById('ShopDetailsEstimateSubmit');
+			                if(buttonText == 'SKIP'){
+			                    var txtElements = document.getElementsByClassName('ShopDetailsEstimatetextClass');
+			                    if(txtElements[0].value == '' || txtElements[1].value == '')
+			                        btnContinue.style.display = 'none';                    
+			                }
+			                else if(buttonText == 'Continue'){
+			                    btnContinue.style.display = 'inline-block';
+			                }
+			            }
+			        }
+			    </script>           
+ 	</section>                
+<apex:includeScript value="{!URLFOR($Resource.static, '/js/dropzone_custom.js')}"/>
+</div>
+ <!-- For IE9  --> 
+  <div id="oldBrowser">
+        <div class="row">
+            <div class="col-md-8 col-md-offset-2" id="outerPreview" > 
+                    <div class="ieUpload" id="attachmentDropzone" href="" onclick="openPopup();">                            
+                        <div class="dz-message text-center" >                          
+                            <span class="fa" id="addAttachBtn" style="color: #585858;">&#xf055;</span>
+                            <span class="fa" id="hideDoc" style="color: #585858;">&nbsp;&#xf030;&nbsp;&#xf15b;</span><br/>
+                            <p1 id="hideDoc2" >Add photos and documents</p1>
+                        </div>       
+                    </div>                    
+                </div>  <!-- end outer preview -->                                                
+        </div>
+        <script>
+            function openPopup(){
+                cid ="{!$CurrentPage.Parameters.cid}";
+                fileUploadSection("Continue");
+                window.open('{!$Site.Prefix}' + '/MultiAttachment?cid=' + cid, '_blank','toolbar=no, location=no, titlebar=no, menubar=no, directories=no,status=no,scrollbars=no, resizable=yes, top=500, left=500, width=900, height=150') 
+            }                       
+            function refreshListView(){
+                actionRefreshAttachmentCmp();        
+            }
+            function fileUploadSection(buttonText){   
+                if(document.getElementById('processCollisionSummaryResultsBtn') != null){
+                       document.getElementById('processCollisionSummaryResultsBtn').value = buttonText;            
+                } 
+                if(document.getElementById('getCollisionSummaryResultsBtn') != null){
+                       document.getElementById('getCollisionSummaryResultsBtn').value = buttonText;            
+                }
+                if(document.getElementById('ShopDetailsEstimateSubmit') != null){
+                    var btnContinue = document.getElementById('ShopDetailsEstimateSubmit');
+                    if(buttonText == 'SKIP'){
+                        var txtElements = document.getElementsByClassName('ShopDetailsEstimatetextClass');
+                        if(txtElements[0].value == '' || txtElements[1].value == '')
+                            btnContinue.style.display = 'none';                    
+                    }
+                    else if(buttonText == 'Continue'){
+                        btnContinue.style.display = 'inline-block';
+                    }
+                }
+            }
+        </script>
+        <div class="row">
+            <div class="col-md-8 col-md-offset-2" id=" " >
+                <apex:form id="frm">    
+                    <apex:actionfunction name="actionRefreshAttachmentCmp" action="{!refreshcmp}" rerender="plnUpload" />
+                    <apex:actionfunction name="deleteAttachment" action="{!deleteFile}" reRender="plnUpload" >
+                        <apex:param name="aID" value="" assignto="{!delAttId}"/>
+                    </apex:actionfunction>  
+                    <apex:outputpanel id="plnUpload">
+                        <apex:pageBlock title="Uploaded Attachments"  id="uploaded">
+                            <apex:pageBlockTable value="{!attachments}" var="attachment" >
+                                <apex:column >                           
+                                	<apex:outputText >
+                                		<a id="{!attachment.id}" class="deleteLink" target="_blank"><i id="ieUp" class='fa fa-close'></i></a>  
+                                	</apex:outputText>                                                                               
+                                </apex:column>
+                                <apex:column style="padding-left:20px; text-align:left;" headerValue="" value="{!attachment.Name}"/>
+                            </apex:pageBlockTable>
+                        </apex:pageBlock>                       
+                        <script>                            
+                        	$('.deleteLink').click(function() {
+                                id = $(this).attr('id');                                         
+                                deleteAttachment(id);                                                      
+                             })
+                        </script>                       
+                    </apex:outputpanel>
+                </apex:form>            
+        	</div>
+        </div>  
+     </div>
+ 
+<script>
+    $('.deleteLink').click(function() {
+      	id = $(this).attr('id');     
+        deleteAttachment(id);                      
+    })
+</script>                       
+<script>
+    var BrowserDetect = {
+        init: function () {
+            this.browser = this.searchString(this.dataBrowser) || "Other";
+            this.version = this.searchVersion(navigator.userAgent) || this.searchVersion(navigator.appVersion) || "Unknown";
+        },
+        searchString: function (data) {
+            for (var i = 0; i < data.length; i++) {
+                var dataString = data[i].string;
+                this.versionSearchString = data[i].subString;
+                if (dataString.indexOf(data[i].subString) !== -1) {
+                    return data[i].identity;
+                }
+            }
+        },
+        searchVersion: function (dataString) {
+            var index = dataString.indexOf(this.versionSearchString);
+            if (index === -1) {
+                return;
+            }
+            var rv = dataString.indexOf("rv:");
+            if (this.versionSearchString === "Trident" && rv !== -1) {
+                return parseFloat(dataString.substring(rv + 3));
+            } else {
+                return parseFloat(dataString.substring(index + this.versionSearchString.length + 1));
+            }
+        },
+        dataBrowser: [
+            {string: navigator.userAgent, subString: "Chrome", identity: "Chrome"},
+            {string: navigator.userAgent, subString: "MSIE", identity: "Explorer"},
+            {string: navigator.userAgent, subString: "Trident", identity: "Explorer"},
+            {string: navigator.userAgent, subString: "Firefox", identity: "Firefox"},
+            {string: navigator.userAgent, subString: "Safari", identity: "Safari"},
+            {string: navigator.userAgent, subString: "Opera", identity: "Opera"}
+        ]
+    };   
+    BrowserDetect.init();
+    if ((BrowserDetect.browser == 'Explorer' && BrowserDetect.version == '9')||(BrowserDetect.browser == 'Safari')){
+        document.getElementById('browserOk').style.display = 'none';
+        document.getElementById('oldBrowser').style.display = 'block';
+        
+    }
+    else{
+        document.getElementById('oldBrowser').style.display = 'none';
+        document.getElementById('browserOk').style.display = 'block';
+    }      
+</script>
+
+
+</apex:component>

@@ -1,0 +1,471 @@
+<apex:page controller="CallReportMapCon" doctype="html-5.0" >
+<apex:sectionHeader title="Map Call Reports by Accounts"/>
+<title>Call Report Map</title>
+
+	<head>
+		<!-- STYLE SHEETS  -->
+	    <apex:stylesheet value="{!URLFOR ($Resource.jQueryUI, '/css/ui-lightness/jquery-ui-1.9.0.custom.css')}" />
+    
+	</head>
+    <body>
+    <apex:includeScript value="{!URLFOR($Resource.jQueryUI, '/js/jquery-1.8.2.min.js')}"/>	
+	<apex:includeScript value="{!URLFOR($Resource.jQueryUI, '/js/jquery-1.8.2.js')}"/>
+	<apex:includeScript value="{!URLFOR($Resource.jQueryUI, '/js/jquery-ui-1.9.0.custom.js')}"/>	  
+	<script type="text/javascript"
+    	src="https://maps.google.com/maps/api/js?sensor=false">
+    </script>
+    <style>    
+        
+        .urlLinks {
+        
+        	color: blue;
+        	text-decoration:underline
+        
+        }
+        
+        
+        #map {
+            font-family: Arial;
+            font-size:12px;
+            line-height:normal !important;
+            height:400px;        
+            padding: 20px;
+        }       
+        .roundCornerCss{ 
+            /* outer shadows  (note the rgba is red, green, blue, alpha) */
+            -webkit-box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.4); 
+            -moz-box-shadow: 0px 1px 6px rgba(23, 69, 88, .5);
+            
+            /* rounded corners */
+            -webkit-border-radius: 12px;
+            -moz-border-radius: 7px; 
+            border-radius: 7px;
+            
+            /* gradients */
+            background: -webkit-gradient(linear, left top, left bottom, 
+            color-stop(0%, white), color-stop(15%, white), color-stop(100%, #D7E9F5)); 
+            background: -moz-linear-gradient(top, white 0%, white 55%, #D5E4F3 130%); 
+        }   
+        
+        #loadingScreen {
+		    background: url({!URLFOR($Resource.Markers, 'Markers/ajax-loader.gif')}) no-repeat 5px 8px;
+		    padding-left: 50px;
+		}
+		
+		/* hide the close x on the loading screen */
+		.loadingScreenWindow .ui-dialog-titlebar-close {
+		    display: none;
+		}
+        
+    </style>
+    
+	<script type="text/javascript">
+ 	
+ 	// Global Variables
+ 	
+ 	var geocoder;
+    var map;
+    var infowindow = new google.maps.InfoWindow();
+    var places = [];
+    var title_content = new Array();                    
+    var popup_content = new Array();                    
+    var address = new Array();
+    var address_position = 0;                    
+    var timeout = 600;
+    var pendingCalls = {};  
+    
+    var markersArray = [];
+ 	
+ 	$j = $.noConflict(); // No Conflict Custom $j
+ 	
+ 	
+ 	// Initialize
+ 	
+ 	$j(document).ready(function(){
+ 	
+ 		regDialogs();
+ 	
+ 	});
+ 	
+ 	// Load Google Map
+ 	
+ 	function initialize() {
+		  
+		    geocoder = new google.maps.Geocoder();
+            var latlng = new google.maps.LatLng(42.3583, -71.0603); // Boston, MA as Center
+            var myOptions = {
+              zoom: 3,
+              center: latlng,
+              mapTypeId: 'roadmap'
+            } 
+           
+            map = new google.maps.Map(document.getElementById("map"), myOptions);
+	}
+	
+	function regDialogs(){
+	
+		$j( "#pendDiv" ).dialog({
+			autoOpen: false,
+			title: 'Pending Call Reports'
+		});
+		
+		$j("#loadingScreen").dialog({
+	        autoOpen: false,    // set this to false so we can manually open it
+	        dialogClass: "loadingScreenWindow",
+	        closeOnEscape: false,
+	        draggable: false,
+	        width: 460,
+	        minHeight: 50,
+	        modal: true,
+	        buttons: {},
+	        resizable: false,
+	        open: function() {
+	            // scrollbar fix for IE
+	            $j('body').css('overflow','hidden');
+	        },
+	        close: function() {
+	            // reset overflow
+	            $j('body').css('overflow','auto');
+	        }
+    	}); // end of dialog
+    	
+    	
+    	$j("#selectOption").change(function(){
+        
+        	if($j("select option:selected").text() == 'CUSTOM RANGE'){
+        	
+        		var dates = '<br/>Select Date range: <input type="text" id="startDate"/> &nbsp; to &nbsp;<input type="text" id="endDate"/>';
+  				$j('#rangeDiv').append(dates);
+  				regDateHandlers();
+        	
+        	}else {
+        	
+        		$j('#rangeDiv').empty();
+        			
+        	}
+        });   	
+	}
+	
+	// Custom Date popups JQUERY UI
+	
+ 	function regDateHandlers(){
+ 	
+ 		$j(function() {
+    		$j( "#startDate" ).datepicker({dateFormat: "yy-mm-dd"});
+  		});
+  		
+  		$j(function() {
+    		$j( "#endDate" ).datepicker({dateFormat: "yy-mm-dd"});
+  		});
+  		
+ 	}
+ 	
+ 	
+ 	// Waiting Dialog on Loading
+ 	function waitingDialog() {
+    
+    	$j("#loadingScreen").html('<p>Please Wait ...</p>');
+    	$j("#loadingScreen").dialog('option', 'title', 'Loading');
+    	$j("#loadingScreen").dialog('open');
+    
+	}
+	// Close Waiting Dialog
+	function closeWaitingDialog() {
+	    $j("#loadingScreen").dialog('close');
+		
+	}
+      
+    /*
+    
+    	Main method that gets the Accounts and Call Records for the Selected Date Range.
+    
+    */
+      
+    function getAccountMap(){
+      	
+      	waitingDialog(); // Start Loading
+      	var startDt;
+      	var endDt;
+      	
+      	// Get the Date Ranges - IF any changes needs to be made in the Date Range Calculation, please do it here
+      	
+      	if($j("select option:selected").text() == 'CUSTOM RANGE'){
+      	
+      		startDt = $j("#startDate").val();
+      		endDt   = $j("#endDate").val();
+      	
+      	}
+      	
+      	if($j("select option:selected").text() == 'LAST MONTH'){
+      	
+      		var today = new Date();
+      		var dd = today.getDate();
+			var mm = today.getMonth()+1; //January is 0!
+			var yyyy = today.getFullYear();
+			
+			if(dd<10){dd='0'+dd} if(mm<10){mm='0'+mm} 
+			
+			endDt = yyyy + '-' + mm + '-' + dd;
+      	   
+      	    // Subtract 1 month
+      	    today.setMonth(today.getMonth() - 1);
+      	    
+      	     dd = today.getDate();
+			 mm = today.getMonth()+1; //January is 0!
+			 yyyy = today.getFullYear();
+			
+			if(dd<10){dd='0'+dd} if(mm<10){mm='0'+mm} 
+			
+      	    startDt = yyyy + '-' + mm + '-' + dd;
+      	    
+      	}
+      	
+      	if($j("select option:selected").text() == 'LAST QUARTER'){
+      	
+      		var today = new Date();
+      		var dd = today.getDate();
+			var mm = today.getMonth()+1; //January is 0!
+			var yyyy = today.getFullYear();
+			
+			if(dd<10){dd='0'+dd} if(mm<10){mm='0'+mm} 
+			
+			endDt = yyyy + '-' + mm + '-' + dd;
+      	   
+      	    // Subtract 3 Months
+      	    today.setMonth(today.getMonth() - 3);
+      	    
+      	     dd = today.getDate();
+			 mm = today.getMonth()+1; //January is 0!
+			 yyyy = today.getFullYear();
+			
+			if(dd<10){dd='0'+dd} if(mm<10){mm='0'+mm} 
+			
+      	    startDt = yyyy + '-' + mm + '-' + dd;
+			
+			      	
+      	
+      	}
+      	
+      	if($j("select option:selected").text() == 'LAST YEAR'){
+      	
+      		var today = new Date();
+      		var dd = today.getDate();
+			var mm = today.getMonth()+1; //January is 0!
+			var yyyy = today.getFullYear();
+			
+			if(dd<10){dd='0'+dd} if(mm<10){mm='0'+mm} 
+			
+			endDt = yyyy + '-' + mm + '-' + dd;
+      	   
+      	    // Subtract 1 YEAR
+      	    today.setFullYear(today.getFullYear() - 1);
+      	    
+      	     dd = today.getDate();
+			 mm = today.getMonth()+1; //January is 0!
+			 yyyy = today.getFullYear();
+			
+			if(dd<10){dd='0'+dd} if(mm<10){mm='0'+mm} 
+			
+      	    startDt = yyyy + '-' + mm + '-' + dd;
+      	
+      	}
+      	
+      	
+      	/* Uses JS Remoting to get the Accounts for the Selected Date Range, with Call Reports only*/
+      	
+      	CallReportMapCon.returnAccountsforDateRange(startDt,endDt,function(result,event){
+      		
+      		$j("#messages").empty();
+      		
+      		clearOverlay(); // Remove existing markers if any
+      		
+      		if(event.type == 'exception'){
+            		alert('Error ' + event.message);
+            }else {
+            	
+            	address = new Array();
+            	address_position = 0;
+            	var completeDate = '';
+            	var pendClick = '';
+            	var hasCallRecords = false;
+            	
+            	$j.each(result,function(rec){
+            		
+            		var pendCalls = new Array();
+            		
+            		if(typeof result[rec].Call_Reports__r != 'undefined' && result[rec].Call_Reports__r.length > 0) {
+            			
+            			var name    = '<div><h2 style="color:green;">' +  result[rec].Name + '</h2><br/>';
+            			var status  = 'Complete'
+            			pendClick = ' ';
+            			completeDate = '';
+            		
+            			$j.each(result[rec].Call_Reports__r,function(r){
+            				hasCallRecords = true
+            				if(typeof result[rec].Call_Reports__r[r].Date_Completed__c != 'undefined' ){
+            			
+            					if(typeof completeDate != 'undefined' && result[rec].Call_Reports__r[r].Date_Completed__c > completeDate)
+            						completeDate = result[rec].Call_Reports__r[r].Date_Completed__c;
+            						
+            					if(typeof completeDate == 'undefined')
+            						completeDate = result[rec].Call_Reports__r[r].Date_Completed__c;
+            							
+            				}
+            				
+            				if(result[rec].Call_Reports__r[r].Status__c == 'Pending'){
+            					status = 'Pending';
+            					pendClick = '<a href="#" onclick="openDialog(this);" id='+result[rec].Id+' class="urlLinks">Pending Calls</a>';
+            					pendCalls.push({Call:result[rec].Call_Reports__r[r].Name,CallId:result[rec].Call_Reports__r[r].Id});
+            				}
+            				
+            			
+            			});
+						
+						if(hasCallRecords) {
+							pendingCalls[result[rec].Id] = pendCalls;
+						
+							var addr = result[rec].BillingStreet  + ',' + result[rec].BillingCity    + ',' + 
+            						   result[rec].BillingState   + ',' + result[rec].BillingCountry + ',' + 
+            						   result[rec].BillingPostalCode; 
+						 	
+						 	if(typeof completeDate != 'undefined' && completeDate != ''){
+            			
+		            			var dt = new Date(completeDate);
+		            			var month = dt.getMonth() + 1;
+		            			var dateString =   month + '/' + dt.getDate() + '/' + dt.getFullYear();
+		            			
+		            			name +=  status + '<br/>Last Call Script Completed : ' + dateString + '<br/>' + pendClick + '</div>';
+		            		}else
+		            			name +=  status + '<br/>' + pendClick + '</div>';
+								 	
+						 	name += '<a href="/{!$ObjectType.Call_Report__c.KeyPrefix}/e" target="_blank" class="urlLinks">Create New Call Report</a>';
+						 	
+							address.push(addr);
+            				title_content.push(result[rec].Name);
+            				popup_content.push(name);
+            			
+            			}
+            			            		
+            		}
+            			
+            	});
+            	
+            	if(address.length > 0){
+            		addMarker(address_position); // Add the markers based on the Date Range Selected
+              	}else{
+              		$j("#messages").append('<h3 style="color:red;">No Accounts with Call Records Found for this Date Range</h3><br/>');
+            		closeWaitingDialog();
+            		return false;
+            		
+              	}
+            }
+      		
+      	});
+      	
+      }
+      
+      /*Open the Dialog with the Call Reports that are not completed.*/
+      
+      function openDialog(clicked){
+      	
+      	$j("#pendDiv").empty();
+      
+      	var clickedId = clicked.id;
+      
+      	var pendingCS = '';
+      	
+      	$j.each(pendingCalls[clickedId],function(c){
+      		pendingCS += '<a href="/'+pendingCalls[clickedId][c].CallId+'" target="_blank" class="urlLinks">' + pendingCalls[clickedId][c].Call + "</a><br/>";
+      	});
+      	
+      	$j("#pendDiv").append(pendingCS);
+      	
+      	$j("#pendDiv").dialog( "open" );
+      
+      }
+      
+      /* Add Markers Dynamically */
+      
+      function addMarker(position){
+            geocoder.geocode({'address': address[position]}, function(results, status){
+                if (status == google.maps.GeocoderStatus.OK) {
+                    places[position] = results[0].geometry.location;                                    
+                    var marker = new google.maps.Marker({
+                        position: places[position],
+                        title:title_content[position],
+                        icon: getMapIconUrl(position),
+                        map: map
+                    });
+        			markersArray.push(marker);
+                    google.maps.event.addListener(marker, 'click', function() {
+                        if (!infowindow) {
+                            infowindow = new google.maps.InfoWindow({maxWidth: 200});
+                        }
+                        infowindow.setContent(popup_content[position]);
+                        infowindow.open(map, marker);
+                    });
+                    
+                    
+                }
+                else{
+                    if (status == google.maps.GeocoderStatus.OVER_QUERY_LIMIT){
+                        setTimeout(function() { addMarker(position); }, (timeout * 3));
+                    }
+                }
+                address_position++;
+                if (address_position < address.length){
+                    setTimeout(function() { addMarker(address_position); }, (timeout));
+                }
+                closeWaitingDialog();
+               
+            });
+        }
+        
+        function clearOverlay(){
+        
+        	for (var i = 0; i < markersArray.length; i++ ) {
+    			markersArray[i].setMap(null);
+  			}
+        
+        }
+        
+        /*
+           Sets the Marker Type/Color based on the Marker if Pending or Complete
+        */
+        
+        function getMapIconUrl(markerNumber){
+            
+            var mapIconUrl = "{!URLFOR($Resource.Markers, 'Markers/GreenPin.png')}";
+            
+            if(String(popup_content[markerNumber]).indexOf('Pending') !== -1)
+            	 mapIconUrl = "{!URLFOR($Resource.Markers, 'Markers/PinkPin.png')}";
+            
+            return mapIconUrl;
+        }
+      
+  </script>
+  <!-- HTML Content -->
+  <div id="inputDiv">
+    <select id="selectOption">
+  		<option value="month">LAST MONTH</option>
+  		<option value="quarter">LAST QUARTER</option>
+  		<option value="year">LAST YEAR</option>
+  		<option value="custom">CUSTOM RANGE</option>
+  	</select><br/>
+  	<div id="rangeDiv"></div><br/>
+  	<input type="button" onclick="getAccountMap();" class="btn" value="Submit"/>
+  </div><br/><br/>
+  
+  <div id="messages"></div><br/>
+  
+  <div id="map" class="roundCornerCss"></div>
+  
+  <script>
+         initialize();
+  </script>
+  
+  <div id="canvas_div"></div>
+  <div id="pendDiv"></div>	    
+  <div id="loadingScreen"></div>	
+  </body>
+</apex:page>

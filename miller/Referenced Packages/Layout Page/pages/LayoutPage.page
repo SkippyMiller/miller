@@ -1,0 +1,6 @@
+<apex:page sidebar="false">
+
+    <c:LayoutPageUtility />
+    <c:LayoutPageComponent />
+
+</apex:page>

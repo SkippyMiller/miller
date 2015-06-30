@@ -1,0 +1,184 @@
+<apex:component controller="ClerisoftPages.LayoutPageController" allowDML="true">
+ 
+   
+<!-- References -->
+<apex:includeScript value="../../soap/ajax/29.0/connection.js"/> 
+
+<script src="{!URLFOR($Resource.JQ191, 'js/jquery-1.8.2.js')}"/>
+<script src="{!URLFOR($Resource.JQ191, 'js/jquery-ui-1.8.16.custom.lpjs.min.js')}"/> 
+<script src="{!URLFOR($Resource.JQ191, 'js/jquery-ui-1.9.1.custom.min.js')}"/>
+
+<!-- <c:JSNEW /> -->
+
+
+
+<script>
+
+function highlight(index)
+{
+	$j('#d'+index).addClass('gbullethighlight');
+	$j('#n'+index).addClass('gnumberhighlight');
+}
+
+function lowlight(index)
+{
+	$j('#d'+index).removeClass('gbullethighlight');
+	$j('#n'+index).removeClass('gnumberhighlight');
+	
+}
+
+</script>
+<apex:form >
+<apex:actionFunction name="adjustCounter" action="{!adjustCounter}" rerender="counter"/>
+<div class="lpheader">LAYOUT PAGE 
+<div class="lpsubheader">Visualforce Page Layouts</div>
+<apex:outputpanel id="counter"><div class="counter" id="counter">{!gcount}</div></apex:outputpanel> 
+</div>
+<div class="bodywrapper">
+	<div class="headerguidance">Create Visualforce pages from page layouts in 3 simple steps<div onclick="feedbackPage()" class="fblink">(Got feedback?)</div> 
+	<div class="debugcheck"><div class="debugoff" id="doff" onclick="debugon()">Debug : OFF</div><div id="don" class="debugon" onclick="debugoff()">Debug : ON</div></div>
+	</div>
+	<center>
+	
+	<div class="wrapperdiv"  onmouseover="highlight(1)" onmouseout="lowlight(1)">
+	<center>
+		<div class="gnumber" id="n1">1</div><br/>
+		<div class="gbullet" id="d1">Object</div><br/>
+		<select name="objects" id="objects" class="selectlist" onChange="updateRecordTypes()">
+			<option value="--None--">--None--</option>
+		</select>
+	</center>
+	</div>
+	<div class="wrapperdiv"   onmouseover="highlight(2)" onmouseout="lowlight(2)">
+	<center>
+		<div class="gnumber" id="n2">2</div><br/>
+		<div class="gbullet" id="d2">Record Type</div><br/>
+		<select name="records" id="records" class="selectlist">
+ 				<option value="ALL">ALL</option>
+  			</select>
+	</center>
+	</div>
+	<div class="wrapperdiv"   onmouseover="highlight(3)" onmouseout="lowlight(3)">
+	<center>
+		<div class="gnumber" id="n3">3</div><br/>
+		<div class="gbullet" id="d3">Page Type</div><br/>
+
+		<select name="mode" id="mList" class="selectlist" onChange="recordSelection()">
+ 				<option value="edit">New/Edit Page</option>
+ 				<option value="detail">Detail Page</option>
+  			</select>
+
+	</center>
+	</div>
+	
+	<div class="buttonsarea">
+		<input type="button" class="button" id="createbtn" value="Build Page" disabled="true" onclick="startProcessing();processPage()"/>
+		<input type="button" class="button" id="savebtn" disabled="true" value="Save"  onclick="savePage()"/>
+	</div>
+	<div id="error" class="errorbox">Oops! something went wrong, analyze page markup from debug box. Contact Clerisoft if this problem persists <a class="slink" href="mailto:support@clerisoft.com">(support@clerisoft.com)</a>
+<div id="serror" class="serror"></div></div>
+	<textarea id="debug" readonly="readonly"  class="debugbox"/>
+	</center>
+	
+	<div id="codediv" class="codeDiv">
+		<div class="previewheader">PREVIEW</div>
+		<center>
+			<iframe class="previewFrame"  name="if" id="if" height="600" onload="resizeMe(this);"></iframe>
+  		</center>
+	</div>
+	
+
+</div>
+
+
+<div id="process" class="actionStatusStyleImageDiv"><apex:image value="{!$Resource.ClerisoftPages__Processing}" /></div>
+
+<div class="popupBackground"  id="bg"></div>
+<div class="custPopup"  id="cp"><div class="popupHeader">Save Options <font id="closecross" class="closecross" onclick="saveCancel()">X</font></div>
+<div class="popupData">
+<table width="99%" border="0" cellspacing="3" id="optionstable">
+<tr><td width="20%" align="middle" colspan="2"><center><font class="answer">
+<input type="radio" id="sr" name="saction" value="save" checked="true" onChange="actionSelection('create');"/>New &nbsp;
+<input type="radio" id="ur" name="saction" value="update" onChange="actionSelection('update');"/>Replace</font>
+</center>
+</td></tr>
+<tr id="saveselection"><td width="20%" align="right"><font class="question">Save as</font></td><td align="left"><input type="text" class="answerConfirmation" id="so" onkeydown="return event.keyCode != 13 && event.which != 13;"/></td></tr>
+<tr id="updateselection"  style="display:none;"><td width="20%" align="right"><font class="question">Select</font></td><td align="left">
+
+<select name="vfpages" id="pn" class="selectListConfirmation">
+ <option value="">--None--</option>
+</select>
+
+
+
+</td></tr>
+<tr><td colspan="2"></td></tr>
+
+
+</table>
+<div id="savemessage" class="saveMessage">Specify Name, Click <b>Complete</b>.</div>
+</div>
+<center>
+<input type="button" class="buttonactive" id="completesavebtn" value="Complete"  onclick="completeSave()"/>
+<input type="button" class="buttonactive" id="completeclosebtn" value="Close"  onclick="saveClose()"/>
+</center>
+</div>
+
+<div class="feeedbackPopup"  id="feedbackDiv"><div class="popupHeader">Feedback <font style="position:absolute;right:3%;font-weight:bold;color:#EEE;cursor:pointer" onclick="feedbackClose()">X</font></div>
+<div class="popupDataConfirm" id="popupDataConfirm"><br/><br/><br/><br/>Thank you for sharing your thoughts with us. <br/>Your feedback helps us make our offerings better.<br/>We sincerely appreciate your time and effort in providing feedback to us.<br/><br/>Support Engineering<br/><a href="mailto:support@clerisoft.com" style="color:#0099CC;cursor:pointer;">support@clerisoft.com</a><br/><a style="color:#0099CC;cursor:pointer;" href="http://www.clerisoft.com">www.CLERISOFT.com</a></div>
+<div class="popupData" id="popupData">
+<table cellpadding="3" cellspacing="4" border="0" width="100%">
+<tr><td align="right" width="20%"><font class="question">From</font></td><td align="left"><font class="answer">{!$User.FirstName}&nbsp; {!$User.LastName}&nbsp;&nbsp;({!$User.Email})</font></td></tr>
+<tr><td align="right" width="20%"><font class="question">To</font></td><td align="left"><font class="answer">Clerisoft Support &nbsp;&nbsp;(support@clerisoft.com)</font></td></tr>
+<tr><td align="right" width="20%"><font class="question">Subject</font></td><td align="left">
+<font class="answer"><input type="radio" name="feedbackitem" value="Feature Request" checked="true" onChange="feedbackSelection('Feature Request');"/>Feature Request &nbsp;
+<input type="radio" name="feedbackitem" value="Issue Reporting" onChange="feedbackSelection('Issue Reporting');"/>Issue Reporting</font>
+</td></tr>
+<tr><td align="right" valign="top" width="20%"><font class="question">Message</font></td>
+<td><div contenteditable="true" onclick="this.contentEditable='true';" height="200px" id="fmessage" class="feedboxText"><div></div></div></td></tr>
+</table>
+</div>
+<center><input type="button" class="buttonactive" id="completefeedbackbtn" value="Send"  onclick="sendFeedback()"/>
+<input type="button" class="buttonClose" id="feedbackclosebtn" value="Close"  onclick="feedbackClose()"/>
+</center>
+</div>
+  
+</apex:form>
+
+<script>
+
+$j = jQuery.noConflict();
+
+var  bu = unescape('{! URLFOR($Action.Account.Tab, $ObjectType.Account,  null, true)}')
+bu = bu.substring(0, bu.indexOf('/001/'));
+setSessionId('{!JSENCODE(GETSESSIONID())}');
+setUserId('{!JSENCODE($User.Id)}');
+setBaseURL(bu);
+var isDebug = '{!JSENCODE($CurrentPage.parameters.debug)}';
+var isDig = '{!JSENCODE($CurrentPage.parameters.dig)}';
+if(isDebug == '' || isDebug == undefined)
+isDebug = false;
+
+if(isDig)
+{
+	setDig(isDig);
+}
+
+if(isDebug)
+{
+	setDebug(isDebug);
+	$j('#mm').show('fast');
+}
+setUserDetails('{!JSENCODE($User.FirstName)}', '{!JSENCODE($User.LastName)}', '{!JSENCODE($User.Email)}');
+window.addEventListener('message', function(event) {
+  if (isNaN(event.data) || event.data == 0) return; 
+  var height = parseInt(event.data) + 32; 
+  document.getElementById('if').style.height = height + "px";
+}, false);
+setTimeout(initializeLayoutPage, 250);
+
+
+</script>
+<!-- http://java+script+obf+usca+tor+.+c+o+m+ -- - LAST USED THIS ONE 03/20/2013>
+<!-- http://www.obfuscator.ro/en/index.php -->
+</apex:component>

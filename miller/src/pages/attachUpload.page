@@ -1,0 +1,52 @@
+<apex:page standardStylesheets="false" sidebar="false" showheader="false" >
+<!--  <apex:page standardStylesheets="false" sidebar="false" showheader="false" controller="AutoFlow5Controller" action="{!redirectRequestToHttps}">-->
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Attachment Upload</title>
+     <apex:stylesheet value="{!URLFOR($Resource.static, '/css/farmers-style.css')}"/>   
+    <style>
+     
+/********** Media styles below: *************/
+    @media (max-width: 768px){       
+        input[type="submit"] { 
+            min-width:90%;
+            margin-top:15px;
+        }     
+    }  
+</style>
+</head>
+<body>
+    <div id="wrapper-code"> 
+    <div id="content-wrapper" class="file-a-loss">        
+        <section id="showFileUploadSection" >
+            <div id="showFileUploadSection-wrap" >
+                <!-- <div class="row">
+                    <div class="col-md-10 col-md-offset-1 text-center">
+                        <h1>Thanks {!$user.FirstName}! That's what we need to file your claim.</h1>
+                        <h2>Please also add any of these to help us serve you best</h2>
+                        <p style="font-weight:normal;">Anything else you'd like us to know, photos a police report, etc.</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-8 col-md-offset-2 text-center" >
+                        <input class='inputText' type="textarea" rows="5" style="height:150px;width:100%; text-align:left;" id="anyThingElseDetails" placeholder="Describe details about the incident. What happened, time, what happened next" data-bind="textinput : setAnythingElse, valueUpdate: 'afterkeydown'"/>                    
+                    </div>              
+                </div> -->
+                <div id="showCollisionSummarySection-wrap" style="margin-top:20px;" class="upload-icons"> 
+                	<c:attachUpload />              
+                	<!--  <c:attachUploadComponent AccessToken="{!accessToken}"/> -->
+                </div>                           
+            </div>
+        </section><!--end section -->
+ </div>
+ </div>
+     
+<apex:stylesheet value="{!URLFOR($Resource.static, '/css/farmers-style.css')}"/>   
+<apex:includeScript value="{!URLFOR($Resource.static, '/js/jquery.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.static, '/js/bootstrap.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.static, '/js/jquery-ui.min.js')}"/>   
+
+</body>
+</apex:page>
